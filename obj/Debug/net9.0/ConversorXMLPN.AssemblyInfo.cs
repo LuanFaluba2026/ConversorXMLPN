@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ConversorXMLPN")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+35a0752cf1e736c8ba08cfe0db4ab3a55f3d494d")]
 [assembly: System.Reflection.AssemblyProductAttribute("ConversorXMLPN")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ConversorXMLPN")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
