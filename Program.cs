@@ -1,7 +1,9 @@
-﻿using System.Runtime.InteropServices.Marshalling;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Runtime.InteropServices.Marshalling;
 using System.Xml.Linq;
 using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Drawing;
+using DocumentFormat.OpenXml.Spreadsheet;
 using DocumentFormat.OpenXml.Wordprocessing;
 
 class NotaFiscal
@@ -10,6 +12,7 @@ class NotaFiscal
     public DateTime DataEmissao { get; set; }
     public string? Nome { get; set; }
     public string? Valor { get; set; }
+    public string? Aliquota { get; set; }
 }
 class Program
 {
@@ -29,7 +32,9 @@ class Program
             }
             string[] xmlFiles = Directory.GetFiles(path);
             List<NotaFiscal> processedXML = ProcessXML(xmlFiles, typeInput);
-            GenerateSheet(processedXML);
+            string sheetPath = GenerateSheet(processedXML);
+
+            Console.WriteLine($"Planilha salva como {sheetPath}");
         }
         catch(Exception ex)
         {
@@ -60,6 +65,8 @@ class Program
             var emitInfo = doc.Descendants(nf + "emit").FirstOrDefault();
             var tomaInfo = doc.Descendants(nf + "toma").FirstOrDefault();
             var valInfo = doc.Descendants(nf + "vServPrest").FirstOrDefault();
+            var valTribInfo = doc.Descendants(nf + "valores").FirstOrDefault();
+            var tribInfo = doc.Descendants(nf + "tribMun").FirstOrDefault();
 
             int numNota = int.Parse(nfseInfo?.Element(nf + "nNFSe")?.Value.ToString() ?? "0");
             DateTime dataEmi = DateTime.Parse(nfseInfo?.Element(nf + "dhProc")?.Value ?? "");
@@ -68,34 +75,72 @@ class Program
                 nome = tomaInfo?.Element(nf + "xNome")?.Value ?? "";
             else
                 nome = emitInfo?.Element(nf + "xNome")?.Value ?? "";
-            string valor = valInfo?.Element(nf + "vServ")?.Value ?? "";
+            string valor = valInfo?.Element(nf + "vServ")?.Value?.Replace(".", ",") ?? "";
 
+            bool issRetido = tribInfo?.Element(nf + "tpRetISSQN")?.Value == "2";
+            string? aliquota = tribInfo?.Element(nf + "pAliq")?.Value?.Replace(".", ",") ?? "0,00";
+            string? aliquotaAplic = valTribInfo?.Element(nf + "pAliqAplic")?.Value?.Replace(".", ",") ?? "0,00";
+            string aliquotaIss;
+            if(typeInput.Equals("T",StringComparison.OrdinalIgnoreCase))
+            {
+                if(!string.IsNullOrEmpty(aliquota))
+                    aliquotaIss = issRetido ? aliquota : "0,00";
+                else
+                    aliquotaIss = issRetido ? aliquotaAplic : "0,00";    
+            }
+            else
+            {
+                aliquotaIss = !string.IsNullOrEmpty(aliquotaAplic) ? aliquotaAplic : aliquota;
+            }
+            
             NotaFiscal notaObj = new NotaFiscal
             {
                 NumeroNota = numNota,
                 DataEmissao = dataEmi,
                 Nome = nome,
-                Valor = valor
+                Valor = valor,
+                Aliquota = aliquotaIss
             };
             nfs.Add(notaObj);
         }
         return nfs.OrderBy(x => x.DataEmissao).ThenBy(x => x.NumeroNota).ToList();
     }
 
-    static void GenerateSheet(List<NotaFiscal> notas)
+    static string GenerateSheet(List<NotaFiscal> notas)
     {
         using(var wb = new XLWorkbook())
         {
             var ws = wb.Worksheets.Add("Relatório de Notas Processadas");
+
+
+            ws.Row(1).Style.Fill.BackgroundColor = XLColor.LightGray;
+            ws.Row(1).Style.Font.Bold = true;
+            ws.Row(1).Cell("A").Value = "Sequencia";
+            ws.Row(1).Cell("B").Value = "Data de Emissão";
+            ws.Row(1).Cell("C").Value = "Número nota";
+            ws.Row(1).Cell("D").Value = "Nome";
+            ws.Row(1).Cell("E").Value = "Valor Bruto";
+            ws.Row(1).Cell("F").Value = "Alíquota";
+            ws.Row(1).Cell("G").Value = "Valor ISSQN";
+
+            int x = 2;
             for(int i = 0; i < notas.Count(); i++)
             {
-                int x = i + 1;
-                ws.Row(x).Cell("A").Value = notas[i].DataEmissao.ToString("dd/MM/yyyy");
-                ws.Row(x).Cell("B").Value = notas[i].NumeroNota;
-                ws.Row(x).Cell("C").Value = notas[i].Nome;
-                ws.Row(x).Cell("D").Value = notas[i].Valor;
+                if(x % 2 == 0) ws.Row(x).Style.Fill.BackgroundColor = XLColor.WhiteSmoke;
+                else ws.Row(x).Style.Fill.BackgroundColor = XLColor.White;
+                ws.Row(x).Cell("A").Value =  x - 1;
+                ws.Row(x).Cell("B").Value = notas[i].DataEmissao.ToString("dd/MM/yyyy");
+                ws.Row(x).Cell("C").Value = notas[i].NumeroNota;
+                ws.Row(x).Cell("D").Value = notas[i].Nome;
+                ws.Row(x).Cell("E").Value = double.Parse(notas[i]?.Valor ?? "0");
+                ws.Row(x).Cell("F").Value = double.Parse(notas[i]?.Aliquota ?? "0");
+                ws.Row(x).Cell("G").FormulaA1 = $"=(F{x} / 100) * E{x}";
+                x += 1;
+                
             }
-            wb.SaveAs($"RelatórioProcessado_{DateTime.Now.ToString("dd-MM-yyyy hh-mm-ss")}.xlsx");
+            string path = $"RelatórioProcessado_{DateTime.Now.ToString("dd-MM-yyyy hh-mm-ss")}.xlsx";
+            wb.SaveAs(path);
+            return path;
         }
     }
 }

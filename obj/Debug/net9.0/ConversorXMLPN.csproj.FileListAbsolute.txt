@@ -22,3 +22,4 @@ C:\Users\luan\ConversorXMLPN\obj\Debug\net9.0\refint\ConversorXMLPN.dll
 C:\Users\luan\ConversorXMLPN\obj\Debug\net9.0\ConversorXMLPN.pdb
 C:\Users\luan\ConversorXMLPN\obj\Debug\net9.0\ConversorXMLPN.genruntimeconfig.cache
 C:\Users\luan\ConversorXMLPN\obj\Debug\net9.0\ref\ConversorXMLPN.dll
+C:\Users\luan\ConversorXMLPN\obj\Debug\net9.0\ConversorXMLPN.sourcelink.json

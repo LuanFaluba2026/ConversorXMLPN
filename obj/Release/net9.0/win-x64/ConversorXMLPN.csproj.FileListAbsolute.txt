@@ -206,3 +206,4 @@ C:\Users\luan\ConversorXMLPN\obj\Release\net9.0\win-x64\refint\ConversorXMLPN.dl
 C:\Users\luan\ConversorXMLPN\obj\Release\net9.0\win-x64\ConversorXMLPN.pdb
 C:\Users\luan\ConversorXMLPN\obj\Release\net9.0\win-x64\ConversorXMLPN.genruntimeconfig.cache
 C:\Users\luan\ConversorXMLPN\obj\Release\net9.0\win-x64\ref\ConversorXMLPN.dll
+C:\Users\luan\ConversorXMLPN\obj\Release\net9.0\win-x64\ConversorXMLPN.sourcelink.json
