@@ -8,11 +8,13 @@ using DocumentFormat.OpenXml.Wordprocessing;
 
 class NotaFiscal
 {
-    public int NumeroNota { get; set; }
+    private bool isCancelada = false;
+    public long NumeroNota { get; set; }
     public DateTime DataEmissao { get; set; }
     public string? Nome { get; set; }
     public string? Valor { get; set; }
     public string? Aliquota { get; set; }
+    public bool Cancelada {get {return isCancelada;} set {isCancelada = value;}}
 }
 class Program
 {
@@ -20,7 +22,7 @@ class Program
     {
         try
         {
-            string path = CreateDirectory();
+            string path = CreateDirectory();    
 
             Console.WriteLine("Selecione um tipo de nota:\nP - Serviços Prestados.  T - Serviços Tomados");
             string typeInput;
@@ -30,15 +32,15 @@ class Program
                 if(!typeInput.Equals("P", StringComparison.OrdinalIgnoreCase) && !typeInput.Equals("T", StringComparison.OrdinalIgnoreCase)) Console.WriteLine("Tipo inexistente.");
                 else break;
             }
-            string[] xmlFiles = Directory.GetFiles(path);
+            string[] xmlFiles = Directory.GetFiles(path, "*.xml");
             List<NotaFiscal> processedXML = ProcessXML(xmlFiles, typeInput);
-            string sheetPath = GenerateSheet(processedXML);
+            string sheetPath = GenerateSheet(processedXML.OrderBy(x => x.DataEmissao.Date).ThenBy(x => x.NumeroNota).ToList());
 
             Console.WriteLine($"Planilha salva como {sheetPath}");
         }
         catch(Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            Console.WriteLine($"Ocorreu um erro: {ex.Message} em {ex.StackTrace}");
             Console.ReadKey();
         }
         
@@ -67,8 +69,9 @@ class Program
             var valInfo = doc.Descendants(nf + "vServPrest").FirstOrDefault();
             var valTribInfo = doc.Descendants(nf + "valores").FirstOrDefault();
             var tribInfo = doc.Descendants(nf + "tribMun").FirstOrDefault();
+            var canc = doc.Descendants(nf + "NfseCancelamento").FirstOrDefault();
 
-            int numNota = int.Parse(nfseInfo?.Element(nf + "nNFSe")?.Value.ToString() ?? "0");
+            long numNota = long.Parse(nfseInfo?.Element(nf + "nNFSe")?.Value.ToString() ?? "0");
             DateTime dataEmi = DateTime.Parse(nfseInfo?.Element(nf + "dhProc")?.Value ?? "");
             string nome;
             if(typeInput.Equals("P", StringComparison.OrdinalIgnoreCase))
@@ -78,20 +81,21 @@ class Program
             string valor = valInfo?.Element(nf + "vServ")?.Value?.Replace(".", ",") ?? "";
 
             bool issRetido = tribInfo?.Element(nf + "tpRetISSQN")?.Value == "2";
-            string? aliquota = tribInfo?.Element(nf + "pAliq")?.Value?.Replace(".", ",") ?? "0,00";
-            string? aliquotaAplic = valTribInfo?.Element(nf + "pAliqAplic")?.Value?.Replace(".", ",") ?? "0,00";
+            string? aliquota = tribInfo?.Element(nf + "pAliq")?.Value?.Replace(".", ",");
+            string? aliquotaAplic = valTribInfo?.Element(nf + "pAliqAplic")?.Value?.Replace(".", ",");
             string aliquotaIss;
             if(typeInput.Equals("T",StringComparison.OrdinalIgnoreCase))
             {
                 if(!string.IsNullOrEmpty(aliquota))
                     aliquotaIss = issRetido ? aliquota : "0,00";
                 else
-                    aliquotaIss = issRetido ? aliquotaAplic : "0,00";    
+                    aliquotaIss = issRetido ? aliquotaAplic ?? "0" : "0,00";    
             }
             else
             {
-                aliquotaIss = !string.IsNullOrEmpty(aliquotaAplic) ? aliquotaAplic : aliquota;
+                aliquotaIss = !string.IsNullOrEmpty(aliquotaAplic) ? aliquotaAplic ?? "0" : aliquota ?? "0";
             }
+            
             
             NotaFiscal notaObj = new NotaFiscal
             {
@@ -99,11 +103,12 @@ class Program
                 DataEmissao = dataEmi,
                 Nome = nome,
                 Valor = valor,
-                Aliquota = aliquotaIss
+                Aliquota = aliquotaIss,
+                Cancelada = canc != null
             };
             nfs.Add(notaObj);
         }
-        return nfs.OrderBy(x => x.DataEmissao).ThenBy(x => x.NumeroNota).ToList();
+        return nfs;
     }
 
     static string GenerateSheet(List<NotaFiscal> notas)
@@ -127,10 +132,11 @@ class Program
             for(int i = 0; i < notas.Count(); i++)
             {
                 if(x % 2 == 0) ws.Row(x).Style.Fill.BackgroundColor = XLColor.WhiteSmoke;
+                else if(notas[i].Cancelada) ws.Row(x).Style.Fill.BackgroundColor = XLColor.CoralRed;
                 else ws.Row(x).Style.Fill.BackgroundColor = XLColor.White;
                 ws.Row(x).Cell("A").Value =  x - 1;
                 ws.Row(x).Cell("B").Value = notas[i].DataEmissao.ToString("dd/MM/yyyy");
-                ws.Row(x).Cell("C").Value = notas[i].NumeroNota;
+                ws.Row(x).Cell("C").Value = notas[i].NumeroNota.ToString();
                 ws.Row(x).Cell("D").Value = notas[i].Nome;
                 ws.Row(x).Cell("E").Value = double.Parse(notas[i]?.Valor ?? "0");
                 ws.Row(x).Cell("F").Value = double.Parse(notas[i]?.Aliquota ?? "0");
