@@ -23,3 +23,5 @@ C:\Users\luan\ConversorXMLPN\obj\Debug\net9.0\ConversorXMLPN.pdb
 C:\Users\luan\ConversorXMLPN\obj\Debug\net9.0\ConversorXMLPN.genruntimeconfig.cache
 C:\Users\luan\ConversorXMLPN\obj\Debug\net9.0\ref\ConversorXMLPN.dll
 C:\Users\luan\ConversorXMLPN\obj\Debug\net9.0\ConversorXMLPN.sourcelink.json
+C:\Users\luan\ConversorXMLPN\bin\Debug\net9.0\estados.json
+C:\Users\luan\ConversorXMLPN\bin\Debug\net9.0\municipios.json

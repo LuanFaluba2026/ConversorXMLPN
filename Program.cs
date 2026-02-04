@@ -9,6 +9,17 @@ using DocumentFormat.OpenXml.Office2016.Drawing.Command;
 using System.Text.Json;
 using System.Net.Http.Json;
 
+class Estado
+{
+    public int codigo_uf { get; set; }
+    public string? uf { get; set; }
+}
+class Municipio
+{
+    public int codigo_ibge { get; set; }
+    public string? nome { get; set; }
+    public int codigo_uf { get; set; }
+}
 class NotaFiscal
 {
     private bool isCancelada = false;
@@ -24,10 +35,12 @@ class NotaFiscal
 }
 class Program
 {
-    static async Task Main(string[] args)
+    static List<Municipio> municipios = new List<Municipio>();
+    static void Main(string[] args)
     {
         try
         {
+            GatherMunicipio();
             string path = CreateDirectory();    
 
             Console.WriteLine("Selecione um tipo de nota:\nP - Serviços Prestados.  T - Serviços Tomados");
@@ -39,7 +52,7 @@ class Program
                 else break;
             }
             string[] xmlFiles = Directory.GetFiles(path, "*.xml");
-            var processedXML = await ProcessXML(xmlFiles, typeInput);
+            var processedXML = ProcessXML(xmlFiles, typeInput);
             string sheetPath = GenerateSheet(processedXML.OrderBy(x => x.DataEmissao.Date).ThenBy(x => x.NumeroNota).ToList());
 
             Console.WriteLine($"Planilha salva como {sheetPath}");
@@ -59,7 +72,7 @@ class Program
             Directory.CreateDirectory(folderName);
         return folderName;
     }
-    static async Task<List<NotaFiscal>> ProcessXML(string[] xmls, string typeInput)
+    static List<NotaFiscal> ProcessXML(string[] xmls, string typeInput)
     {
         if(xmls.Length == 0) throw new Exception("Nenhum arquivo na pasta. Tente novamete...");
 
@@ -85,12 +98,14 @@ class Program
             if(typeInput.Equals("P", StringComparison.OrdinalIgnoreCase))
             {
                 nome = tomaInfo?.Element(nf + "xNome")?.Value ?? "";
-                estMun = await GetMunicipio(tomaInfo?.Descendants(nf + "endNac")?.FirstOrDefault()?.Element(nf + "cMun")?.Value ?? "");
+                string munXML = tomaInfo?.Descendants(nf + "endNac")?.FirstOrDefault()?.Element(nf + "cMun")?.Value ?? "";
+                estMun = municipios.First(x => x.codigo_ibge.ToString() == munXML).nome ?? throw new Exception("Município Inválido");
             }
             else
             {
                 nome = emitInfo?.Element(nf + "xNome")?.Value ?? "";
-                estMun = await GetMunicipio(emitInfo?.Descendants(nf + "enderNac")?.FirstOrDefault()?.Element(nf + "cMun")?.Value ?? "");
+                string munXML = emitInfo?.Descendants(nf + "enderNac")?.FirstOrDefault()?.Element(nf + "cMun")?.Value ?? "";
+                estMun = municipios.First(x => x.codigo_ibge.ToString() == munXML).nome ?? throw new Exception("Município Inválido");
             }
             string valor = valInfo?.Element(nf + "vServ")?.Value?.Replace(".", ",") ?? "";
 
@@ -172,20 +187,23 @@ class Program
             return path;
         }
     }
-    static async Task<string> GetMunicipio(string mun)
+    static void GatherMunicipio()
     {
-        using (var client = new HttpClient())
+        string munFile = "municipios.json";
+        string estFile = "estados.json";
+        string munJsonFile = File.ReadAllText(munFile);
+        string estJsonFile = File.ReadAllText(estFile);
+
+        List<Municipio> munJson = JsonSerializer.Deserialize<List<Municipio>>(munJsonFile) ?? new List<Municipio>();
+        List<Estado> estJson = JsonSerializer.Deserialize<List<Estado>>(estJsonFile) ?? new List<Estado>();
+        if(munJson.Count == 0 || estJson.Count == 0) throw new Exception("Ocorreu um erro ao converter o arquivo JSON.");
+        foreach(Municipio mun in munJson)
         {
-            string url = $"https://servicodados.ibge.gov.br/api/v1/localidades/municipios/{mun}";
-            HttpResponseMessage response = await client.GetAsync(url);
-            //Console.WriteLine("StatusHTTP: " + response.StatusCode);
-            //Console.WriteLine(await response.Content.ReadAsStringAsync());
-            //Console.WriteLine(dados.GetProperty("nome").GetString());
-            //Console.WriteLine($"{municipio}-{UF}");
-            var dados = await response.Content.ReadFromJsonAsync<JsonElement>();
-            string municipio = dados.GetProperty("nome").GetString() ?? throw new Exception("Municipio não encontrado pela API - " + response.StatusCode);
-            string UF = dados.GetProperty("microrregiao").GetProperty("mesorregiao").GetProperty("UF").GetProperty("sigla").GetString() ?? throw new Exception("UF não encontrada - " + response.StatusCode);
-            return $"{municipio}-{UF}";
+            municipios.Add(new Municipio
+            {
+                codigo_ibge = mun.codigo_ibge,
+                nome = $"{mun.nome} - {estJson.FirstOrDefault(x => x.codigo_uf == mun.codigo_uf)?.uf ?? throw new Exception("UF não encontrada")}"
+            });
         }
     }
 }

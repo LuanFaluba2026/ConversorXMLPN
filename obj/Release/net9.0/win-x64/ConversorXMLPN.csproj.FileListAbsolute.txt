@@ -207,3 +207,5 @@ C:\Users\luan\ConversorXMLPN\obj\Release\net9.0\win-x64\ConversorXMLPN.pdb
 C:\Users\luan\ConversorXMLPN\obj\Release\net9.0\win-x64\ConversorXMLPN.genruntimeconfig.cache
 C:\Users\luan\ConversorXMLPN\obj\Release\net9.0\win-x64\ref\ConversorXMLPN.dll
 C:\Users\luan\ConversorXMLPN\obj\Release\net9.0\win-x64\ConversorXMLPN.sourcelink.json
+C:\Users\luan\ConversorXMLPN\bin\Release\net9.0\win-x64\estados.json
+C:\Users\luan\ConversorXMLPN\bin\Release\net9.0\win-x64\municipios.json

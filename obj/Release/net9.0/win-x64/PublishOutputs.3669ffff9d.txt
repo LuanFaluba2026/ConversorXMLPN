@@ -1,2 +1,4 @@
 C:\Users\luan\ConversorXMLPN\bin\Release\net9.0\win-x64\publish\ConversorXMLPN.pdb
+C:\Users\luan\ConversorXMLPN\bin\Release\net9.0\win-x64\publish\estados.json
+C:\Users\luan\ConversorXMLPN\bin\Release\net9.0\win-x64\publish\municipios.json
 C:\Users\luan\ConversorXMLPN\bin\Release\net9.0\win-x64\publish\ConversorXMLPN.exe
