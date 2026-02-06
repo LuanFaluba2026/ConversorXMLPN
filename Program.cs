@@ -1,15 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.Net;
-using System.Net.Http;
-using System.Threading.Tasks;
-using System.Runtime.InteropServices;
+﻿using System.Net;
 using System.Xml.Linq;
 using ClosedXML.Excel;
-using DocumentFormat.OpenXml.Office2016.Drawing.Command;
 using System.Text.Json;
-using System.Net.Http.Json;
 using System.Security.Cryptography.X509Certificates;
-using DocumentFormat.OpenXml.Office.Word;
 
 class Estado
 {
@@ -24,7 +17,6 @@ class Municipio
 }
 class NotaFiscal
 {
-    private bool isCancelada = false;
     public long NumeroNota { get; set; }
     public DateTime DataEmissao { get; set; }
     public string? Nome { get; set; }
@@ -33,7 +25,8 @@ class NotaFiscal
     public string? EstMun { get; set; }
     public string? ItemServ{ get; set; }
     public string? ChaveAcesso { get; set;}
-    public bool Cancelada {get {return isCancelada;} set {isCancelada = value;}}
+    public bool ValidTomador { get; set;} = true;
+    public bool Cancelada {get; set;} = false;
 }
 class Program
 {
@@ -101,7 +94,7 @@ class Program
             var tribInfo = doc.Descendants(nf + "tribMun").FirstOrDefault();
             var canc = doc.Descendants(nf + "NfseCancelamento").FirstOrDefault();
             var serv = doc.Descendants(nf + "cServ").FirstOrDefault();
-
+            
             long numNota = long.Parse(nfseInfo?.Element(nf + "nNFSe")?.Value.ToString() ?? "0");
             DateTime dataEmi = DateTime.Parse(nfseInfo?.Element(nf + "dhProc")?.Value ?? "");
             string nome;
@@ -144,6 +137,8 @@ class Program
                 sitCanc = await VerifyStatus(chave, client);
             else
                 sitCanc = true;
+
+            bool tomador = tomaInfo != null;
             
             NotaFiscal notaObj = new NotaFiscal
             {
@@ -155,7 +150,8 @@ class Program
                 ItemServ = codServ,
                 EstMun = estMun,
                 ChaveAcesso = xml,
-                Cancelada = sitCanc
+                Cancelada = sitCanc,
+                ValidTomador = tomador
             };
             nfs.Add(notaObj);
         }
@@ -168,25 +164,30 @@ class Program
         {
             var ws = wb.Worksheets.Add("Relatório de Notas Processadas");
 
-
-            ws.Row(1).Style.Fill.BackgroundColor = XLColor.LightGray;
+            ws.Row(1).Cell("A").Value = "Cancelada";
+            ws.Row(1).Cell("A").Style.Fill.BackgroundColor = XLColor.CoralRed;
+            ws.Row(1).Cell("B").Value = "Sem Tomador";
+            ws.Row(1).Cell("B").Style.Fill.BackgroundColor = XLColor.Yellow;
+            ws.Row(2).Style.Fill.BackgroundColor = XLColor.LightGray;
             ws.Row(1).Style.Font.Bold = true;
-            ws.Row(1).Cell("A").Value = "Sequencia";
-            ws.Row(1).Cell("B").Value = "Data de Emissão";
-            ws.Row(1).Cell("C").Value = "Número nota";
-            ws.Row(1).Cell("D").Value = "Nome";
-            ws.Row(1).Cell("E").Value = "Local";
-            ws.Row(1).Cell("F").Value = "Cod. Serv";
-            ws.Row(1).Cell("G").Value = "Valor Bruto";
-            ws.Row(1).Cell("H").Value = "Alíquota";
-            ws.Row(1).Cell("I").Value = "Valor ISSQN";
-            ws.Row(1).Cell("J").Value = "Chave Acesso";
+            ws.Row(2).Style.Font.Bold = true;
+            ws.Row(2).Cell("A").Value = "Sequencia";
+            ws.Row(2).Cell("B").Value = "Data de Emissão";
+            ws.Row(2).Cell("C").Value = "Número nota";
+            ws.Row(2).Cell("D").Value = "Nome";
+            ws.Row(2).Cell("E").Value = "Local";
+            ws.Row(2).Cell("F").Value = "Cod. Serv";
+            ws.Row(2).Cell("G").Value = "Valor Bruto";
+            ws.Row(2).Cell("H").Value = "Alíquota";
+            ws.Row(2).Cell("I").Value = "Valor ISSQN";
+            ws.Row(2).Cell("J").Value = "Chave Acesso";
 
-            int x = 2;
+            int x = 3;
             for(int i = 0; i < notas.Count(); i++)
             {
                 if(notas[i].Cancelada) ws.Row(x).Style.Fill.BackgroundColor = XLColor.CoralRed;
-                ws.Row(x).Cell("A").Value =  x - 1;
+                else if(!notas[i].ValidTomador) ws.Row(x).Style.Fill.BackgroundColor = XLColor.Yellow;
+                ws.Row(x).Cell("A").Value =  x - 2;
                 ws.Row(x).Cell("B").Value = notas[i].DataEmissao.ToString("dd/MM/yyyy");
                 ws.Row(x).Cell("C").Value = notas[i].NumeroNota.ToString();
                 ws.Row(x).Cell("D").Value = notas[i].Nome;
@@ -199,6 +200,7 @@ class Program
                 x += 1;
                 
             }
+            ws.Columns().AdjustToContents();
             string path = $"RelatórioProcessado_{DateTime.Now.ToString("dd-MM-yyyy hh-mm-ss")}.xlsx";
             wb.SaveAs(path);
             return path;
