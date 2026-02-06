@@ -8,6 +8,8 @@ using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Office2016.Drawing.Command;
 using System.Text.Json;
 using System.Net.Http.Json;
+using System.Security.Cryptography.X509Certificates;
+using DocumentFormat.OpenXml.Office.Word;
 
 class Estado
 {
@@ -36,7 +38,7 @@ class NotaFiscal
 class Program
 {
     static List<Municipio> municipios = new List<Municipio>();
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
         try
         {
@@ -52,7 +54,7 @@ class Program
                 else break;
             }
             string[] xmlFiles = Directory.GetFiles(path, "*.xml");
-            var processedXML = ProcessXML(xmlFiles, typeInput);
+            var processedXML = await ProcessXML(xmlFiles, typeInput);
             string sheetPath = GenerateSheet(processedXML.OrderBy(x => x.DataEmissao.Date).ThenBy(x => x.NumeroNota).ToList());
 
             Console.WriteLine($"Planilha salva como {sheetPath}");
@@ -72,9 +74,18 @@ class Program
             Directory.CreateDirectory(folderName);
         return folderName;
     }
-    static List<NotaFiscal> ProcessXML(string[] xmls, string typeInput)
+    static async Task<List<NotaFiscal>> ProcessXML(string[] xmls, string typeInput)
     {
         if(xmls.Length == 0) throw new Exception("Nenhum arquivo na pasta. Tente novamete...");
+
+        //Begin connection with API 
+        X509Certificate2 cert = X509CertificateLoader.LoadPkcs12FromFile(
+            @"F:\G2Ka\CERTIFICADOS A1\ASSOCIACAO GESTAO VEICULAR UNIVERSO_14777297000100.pfx",
+            "123456"
+        );
+        var handler = new HttpClientHandler();
+        handler.ClientCertificates.Add(cert);
+        using HttpClient client = new HttpClient(handler);
 
         List<NotaFiscal> nfs = new List<NotaFiscal>();
         foreach(var xml in xmls)
@@ -127,6 +138,11 @@ class Program
             
             string codServ = serv?.Element(nf + "cTribNac")?.Value?.Substring(0, 4).Insert(2, ".") ?? throw new Exception("Código de serviço inválido.");
             
+            bool sitCanc = false;
+            if(canc == null)
+                sitCanc = await VerifyStatus(xml, client);
+            else
+                sitCanc = true;
             
             NotaFiscal notaObj = new NotaFiscal
             {
@@ -138,7 +154,7 @@ class Program
                 ItemServ = codServ,
                 EstMun = estMun,
                 ChaveAcesso = xml,
-                Cancelada = canc != null
+                Cancelada = sitCanc
             };
             nfs.Add(notaObj);
         }
@@ -205,5 +221,24 @@ class Program
                 nome = $"{mun.nome} - {estJson.FirstOrDefault(x => x.codigo_uf == mun.codigo_uf)?.uf ?? throw new Exception("UF não encontrada")}"
             });
         }
+    }
+    static async Task<bool> VerifyStatus(string xml, HttpClient client)
+    {
+        int[] eventos =
+        {
+            101101,
+            101103,
+            105102,
+            105104,
+            105105
+        };
+        foreach(int evento in eventos)
+        {
+            string url = $"https://sefin.nfse.gov.br/SefinNacional/nfse/{Path.GetFileNameWithoutExtension(xml)}/eventos/{evento}/1";
+            HttpResponseMessage resp = await client.GetAsync(url);
+            if(resp.StatusCode == HttpStatusCode.OK)
+                return true;
+        }
+        return false;
     }
 }
