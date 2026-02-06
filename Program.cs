@@ -139,8 +139,9 @@ class Program
             string codServ = serv?.Element(nf + "cTribNac")?.Value?.Substring(0, 4).Insert(2, ".") ?? throw new Exception("Código de serviço inválido.");
             
             bool sitCanc = false;
+            string chave = nfseInfo?.Attribute("Id")?.Value.Substring(3) ?? throw new Exception("Chave de acesso inválida.");
             if(canc == null)
-                sitCanc = await VerifyStatus(xml, client);
+                sitCanc = await VerifyStatus(chave, client);
             else
                 sitCanc = true;
             
