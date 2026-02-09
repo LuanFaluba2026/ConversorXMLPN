@@ -79,7 +79,7 @@ class Program
         var handler = new HttpClientHandler();
         handler.ClientCertificates.Add(cert);
         using HttpClient client = new HttpClient(handler);
-
+        
         List<NotaFiscal> nfs = new List<NotaFiscal>();
         foreach(var xml in xmls)
         {
@@ -235,12 +235,22 @@ class Program
             105104,
             105105
         };
-        foreach(int evento in eventos)
+        try
         {
-            string url = $"https://sefin.nfse.gov.br/SefinNacional/nfse/{Path.GetFileNameWithoutExtension(xml)}/eventos/{evento}/1";
-            HttpResponseMessage resp = await client.GetAsync(url);
-            if(resp.StatusCode == HttpStatusCode.OK)
-                return true;
+            foreach(int evento in eventos)
+            {
+                string url = $"https://sefin.nfse.gov.br/SefinNacional/nfse/{Path.GetFileNameWithoutExtension(xml)}/eventos/{evento}/1";
+                HttpResponseMessage resp = await client.GetAsync(url);
+                Console.WriteLine(resp.StatusCode);
+                if(resp.StatusCode == HttpStatusCode.OK)
+                    return true;
+                else if(resp.StatusCode == HttpStatusCode.InternalServerError) throw new Exception("Ocorreu um erro com o servidor, tente novamente mais tarde.");
+            }
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine(ex);
+            throw;
         }
         return false;
     }
