@@ -83,6 +83,7 @@ class Program
         List<NotaFiscal> nfs = new List<NotaFiscal>();
         foreach(var xml in xmls)
         {
+            Console.WriteLine($"Processando {Path.GetFileName(xml)}");
             XDocument doc = XDocument.Load(xml);
             XNamespace nf = "http://www.sped.fazenda.gov.br/nfse";
 
@@ -103,13 +104,13 @@ class Program
             {
                 nome = tomaInfo?.Element(nf + "xNome")?.Value ?? "";
                 string munXML = tomaInfo?.Descendants(nf + "endNac")?.FirstOrDefault()?.Element(nf + "cMun")?.Value ?? "";
-                estMun = municipios.First(x => x.codigo_ibge.ToString() == munXML).nome ?? throw new Exception("Município Inválido");
+                estMun = municipios.FirstOrDefault(x => x.codigo_ibge.ToString() == munXML)?.nome ?? "";
             }
             else
             {
                 nome = emitInfo?.Element(nf + "xNome")?.Value ?? "";
                 string munXML = emitInfo?.Descendants(nf + "enderNac")?.FirstOrDefault()?.Element(nf + "cMun")?.Value ?? "";
-                estMun = municipios.First(x => x.codigo_ibge.ToString() == munXML).nome ?? throw new Exception("Município Inválido");
+                estMun = municipios.FirstOrDefault(x => x.codigo_ibge.ToString() == munXML)?.nome ?? throw new Exception("Município Inválido");
             }
             string valor = valInfo?.Element(nf + "vServ")?.Value?.Replace(".", ",") ?? "";
 
@@ -232,7 +233,7 @@ class Program
             101101,
             101103,
             105102,
-            105104,
+            105104, 
             105105
         };
         try
@@ -241,7 +242,6 @@ class Program
             {
                 string url = $"https://sefin.nfse.gov.br/SefinNacional/nfse/{Path.GetFileNameWithoutExtension(xml)}/eventos/{evento}/1";
                 HttpResponseMessage resp = await client.GetAsync(url);
-                Console.WriteLine(resp.StatusCode);
                 if(resp.StatusCode == HttpStatusCode.OK)
                     return true;
                 else if(resp.StatusCode == HttpStatusCode.InternalServerError) throw new Exception("Ocorreu um erro com o servidor, tente novamente mais tarde.");
